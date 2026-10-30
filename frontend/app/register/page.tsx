@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Background from "@/components/Background";
+import { API_URL } from "@/lib/api";
 import { User, Mail, Lock, Phone, MapPin, Briefcase } from "lucide-react";
 
 export default function Register() {
@@ -29,7 +30,7 @@ export default function Register() {
         setIsLoading(true);
 
         try {
-            const res = await fetch("http://localhost:5000/api/auth/register", {
+            const res = await fetch(API_URL + "/api/auth/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),

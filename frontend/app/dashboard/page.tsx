@@ -14,6 +14,10 @@ const LiveTrackingMap = dynamic(() => import("@/components/LiveTrackingMap"), {
 });
 
 import { useTranslation } from "@/hooks/useTranslation";
+import { API_URL } from "@/lib/api";
+
+// Must match the flat diagnostic fee charged by POST /api/bookings
+const INSPECTION_FEE = 100;
 
 
 
@@ -114,13 +118,13 @@ function CustomerDashboard({ token, language }: { token: string | null, language
 
   const fetchServices = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/services");
+      const res = await fetch(API_URL + "/api/services");
       if (res.ok) setServices(await res.json());
     } catch (error) { console.error("Failed to fetch services"); }
   };
   const fetchBookings = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/bookings/customer-bookings", {
+      const res = await fetch(API_URL + "/api/bookings/customer-bookings", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -136,11 +140,11 @@ function CustomerDashboard({ token, language }: { token: string | null, language
   };
   const handleServiceClick = async (service: any) => {
     setSelectedService(service); setActiveTab('browse');
-    try { const res = await fetch(`http://localhost:5000/api/workers?skill=${service.name}`); if (res.ok) setWorkers(await res.json()); } catch (error) { console.error("Failed to fetch workers"); }
+    try { const res = await fetch(`${API_URL}/api/workers?skill=${service.name}`); if (res.ok) setWorkers(await res.json()); } catch (error) { console.error("Failed to fetch workers"); }
   };
   const approveQuote = async (bookingId: string, approved: boolean) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/approve-quote`, {
+      const res = await fetch(`${API_URL}/api/bookings/${bookingId}/approve-quote`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +199,7 @@ function CustomerDashboard({ token, language }: { token: string | null, language
       return;
     }
     try {
-      const res = await fetch("http://localhost:5000/api/bookings", {
+      const res = await fetch(API_URL + "/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({
@@ -219,7 +223,7 @@ function CustomerDashboard({ token, language }: { token: string | null, language
   const submitReview = async () => {
     if (!reviewComment.trim()) { alert("Please write a short comment."); return; }
     try {
-      const res = await fetch(`http://localhost:5000/api/bookings/${selectedBookingForReview._id}/review`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ rating: reviewRating, comment: reviewComment }) });
+      const res = await fetch(`${API_URL}/api/bookings/${selectedBookingForReview._id}/review`, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ rating: reviewRating, comment: reviewComment }) });
       if (res.ok) { alert("Thank you for your feedback! ⭐"); setShowReviewModal(false); setSelectedBookingForReview(null); setReviewComment(""); setReviewRating(5); fetchBookings(); } else { const data = await res.json(); alert(data.message || "Failed to submit review"); }
     } catch (error) { alert("Something went wrong"); }
   };
@@ -234,7 +238,7 @@ function CustomerDashboard({ token, language }: { token: string | null, language
       const formData = new FormData();
       formData.append('photo', files[i]);
       try {
-        const res = await fetch('http://localhost:5000/api/upload/image', {
+        const res = await fetch(API_URL + '/api/upload/image', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: formData
@@ -261,32 +265,28 @@ function CustomerDashboard({ token, language }: { token: string | null, language
     b.status === 'completed' ||
     b.status === 'cancelled'
   );
+  // Plain string so the socket effect only re-runs when the set of rooms changes,
+  // not on every render (activeBookings is a new array each time).
+  const activeBookingIds = activeBookings.map((b: any) => b._id).join(',');
 
   useEffect(() => {
-    // Initialize socket
-    socketRef.current = io("http://localhost:5000");
+    const socket = io(API_URL);
+    socketRef.current = socket;
 
-    // Join all active booking rooms
-    if (activeBookings.length > 0) {
-      activeBookings.forEach((booking: any) => {
-        socketRef.current.emit('join_booking', booking._id);
-      });
-    }
+    activeBookingIds
+      .split(',')
+      .filter(Boolean)
+      .forEach((bookingId) => socket.emit('join_booking', bookingId));
 
-    // Listen for worker movement
-    socketRef.current.on('worker_moved', (data: any) => {
-      console.log('📍 Worker moved:', data);
+    socket.on('worker_moved', (data: any) => {
       setWorkerLocation({ lat: data.lat, lng: data.lng });
     });
 
-    // Cleanup
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current.off('worker_moved');
-      }
+      socket.off('worker_moved');
+      socket.disconnect();
     };
-  }, [activeBookings]);
+  }, [activeBookingIds]);
 
   return (
     <div className="relative min-h-screen">
@@ -312,7 +312,7 @@ function CustomerDashboard({ token, language }: { token: string | null, language
               {services.map((service: any, index) => (
                 <motion.div key={service._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05, y: -5 }} onClick={() => handleServiceClick(service)} className={`bg-white/10 backdrop-blur-lg p-6 rounded-2xl border cursor-pointer transition hover:bg-white/20 ${selectedService?._id === service._id ? 'border-indigo-500 ring-2 ring-indigo-500' : 'border-white/20'}`}>
                   <h3 className="text-lg font-semibold text-white">{service.name}</h3>
-                  <p className="text-white/70 text-sm mt-1">{t('customer.startingAt')} ₹{service.basePrice}</p>
+                  <p className="text-white/70 text-sm mt-1">{t('customer.startingAt')} ₹{INSPECTION_FEE}</p>
                 </motion.div>
               ))}
             </div>
@@ -605,7 +605,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
     fetchProposals();
   }, []);
   useEffect(() => {
-    socketRef.current = io("http://localhost:5000", { query: { token } });
+    socketRef.current = io(API_URL, { query: { token } });
     return () => {
       // Clean up socket connection
       if (socketRef.current) {
@@ -621,14 +621,14 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
 
 
   const fetchWorkerBookings = async () => {
-    try { const res = await fetch("http://localhost:5000/api/bookings/worker-bookings", { headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setBookings(await res.json()); } catch (error) { console.error("Failed to fetch worker bookings"); }
+    try { const res = await fetch(API_URL + "/api/bookings/worker-bookings", { headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setBookings(await res.json()); } catch (error) { console.error("Failed to fetch worker bookings"); }
   };
   const updateStatus = async (bookingId: string, newStatus: string) => {
-    try { const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, { method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ status: newStatus }) }); if (res.ok) fetchWorkerBookings(); } catch (error) { console.error("Failed to update status"); }
+    try { const res = await fetch(`${API_URL}/api/bookings/${bookingId}/status`, { method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ status: newStatus }) }); if (res.ok) fetchWorkerBookings(); } catch (error) { console.error("Failed to update status"); }
   };
   const submitQuote = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/bookings/${selectedBookingForQuote._id}/submit-quote`, {
+      const res = await fetch(`${API_URL}/api/bookings/${selectedBookingForQuote._id}/submit-quote`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -705,7 +705,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
 
   const fetchProposals = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/proposals", {
+      const res = await fetch(API_URL + "/api/proposals", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -719,7 +719,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
 
   const handleVote = async (proposalId: string, voteType: 'yes' | 'no') => {
     try {
-      const res = await fetch(`http://localhost:5000/api/proposals/${proposalId}/vote`, {
+      const res = await fetch(`${API_URL}/api/proposals/${proposalId}/vote`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -742,7 +742,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
     }
   };
 
-  const completedBookings = bookings.filter(b => b.status === 'completed' || b.status === 'cancelled');
+  const completedBookings = bookings.filter(b => b.status === 'completed');
   const totalEarnings = completedBookings.reduce((sum, b) => sum + b.workerPayout, 0);
   const totalWelfareContribution = completedBookings.reduce((sum, b) => sum + b.cooperativeFundContribution, 0);
   const pendingBookings = bookings.filter(b =>
@@ -992,7 +992,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
                           </div>
                           <div>
                             <h4 className="text-white font-bold text-lg">{proposal.title}</h4>
-                            <p className="text-white/60 text-sm mt-1">Proposed by: {proposal.proposer}</p>
+                            <p className="text-white/60 text-sm mt-1">Proposed by: {proposal.proposedBy}</p>
                           </div>
                         </div>
                       </div>
@@ -1101,8 +1101,8 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
             <div className="mb-6">
               <label className="block text-sm font-medium text-white/80 mb-2">Parts Cost (₹)</label>
               <input type="number" value={partsCost} onChange={(e) => setPartsCost(Number(e.target.value))} placeholder="0" className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <p className="text-xs text-white/50 mt-1">Diagnostic Fee: ₹100 (included)</p>
-              <p className="text-sm font-bold text-indigo-400 mt-2">Total Quote: ₹{100 + Number(partsCost || 0)}</p>
+              <p className="text-xs text-white/50 mt-1">Diagnostic Fee: ₹{INSPECTION_FEE} (included)</p>
+              <p className="text-sm font-bold text-indigo-400 mt-2">Total Quote: ₹{INSPECTION_FEE + Number(partsCost || 0)}</p>
             </div>
 
             <div className="flex justify-end gap-2">
@@ -1152,20 +1152,20 @@ function AdminDashboard({ token, handleLogout, language }: { token: string | nul
     if (activeTab === 'analytics') fetchStats();
   }, [activeTab]);
 
-  const fetchStats = async () => { try { const res = await fetch("http://localhost:5000/api/admin/stats", { headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setStats(await res.json()); } catch (error) { console.error("Failed to fetch stats"); } };
-  const fetchProposals = async () => { try { const res = await fetch("http://localhost:5000/api/proposals", { headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setProposals(await res.json()); } catch (error) { console.error("Failed to fetch proposals"); } };
+  const fetchStats = async () => { try { const res = await fetch(API_URL + "/api/admin/stats", { headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setStats(await res.json()); } catch (error) { console.error("Failed to fetch stats"); } };
+  const fetchProposals = async () => { try { const res = await fetch(API_URL + "/api/proposals", { headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setProposals(await res.json()); } catch (error) { console.error("Failed to fetch proposals"); } };
   const handleAddProposal = async () => {
     const newTitle = prompt("Enter the new proposal topic:");
-    if (newTitle) { try { const res = await fetch("http://localhost:5000/api/proposals", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ title: newTitle }) }); if (res.ok) { const newProposal = await res.json(); setProposals([newProposal, ...proposals]); } } catch (error) { alert("Failed to create proposal"); } }
+    if (newTitle) { try { const res = await fetch(API_URL + "/api/proposals", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ title: newTitle }) }); if (res.ok) { const newProposal = await res.json(); setProposals([newProposal, ...proposals]); } } catch (error) { alert("Failed to create proposal"); } }
   };
   const handleRemoveProposal = async (id: string) => {
-    if (window.confirm("Are you sure?")) { try { const res = await fetch(`http://localhost:5000/api/proposals/${id}`, { method: "DELETE", headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setProposals(proposals.filter((p: any) => p._id !== id)); } catch (error) { alert("Failed to delete proposal"); } }
+    if (window.confirm("Are you sure?")) { try { const res = await fetch(`${API_URL}/api/proposals/${id}`, { method: "DELETE", headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setProposals(proposals.filter((p: any) => p._id !== id)); } catch (error) { alert("Failed to delete proposal"); } }
   };
   const handleVote = async (proposalId: string, voteType: 'yes' | 'no') => {
-    try { const res = await fetch(`http://localhost:5000/api/proposals/${proposalId}/vote`, { method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ voteType }) }); if (res.ok) { const updatedProposal = await res.json(); setProposals(proposals.map((p: any) => p._id === proposalId ? updatedProposal : p)); } else { const data = await res.json(); alert(data.message || "Failed to register vote"); } } catch (error) { console.error("Vote error:", error); alert("Something went wrong while voting"); }
+    try { const res = await fetch(`${API_URL}/api/proposals/${proposalId}/vote`, { method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ voteType }) }); if (res.ok) { const updatedProposal = await res.json(); setProposals(proposals.map((p: any) => p._id === proposalId ? updatedProposal : p)); } else { const data = await res.json(); alert(data.message || "Failed to register vote"); } } catch (error) { console.error("Vote error:", error); alert("Something went wrong while voting"); }
   };
-  const fetchWorkers = async () => { try { const res = await fetch("http://localhost:5000/api/admin/workers", { headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setWorkers(await res.json()); } catch (error) { console.error("Failed to fetch"); } };
-  const handleVerify = async (workerId: string, status: boolean) => { try { const res = await fetch(`http://localhost:5000/api/admin/workers/${workerId}/verify`, { method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ isVerified: status }) }); if (res.ok) fetchWorkers(); } catch (error) { console.error("Failed to update"); } };
+  const fetchWorkers = async () => { try { const res = await fetch(API_URL + "/api/admin/workers", { headers: { "Authorization": `Bearer ${token}` } }); if (res.ok) setWorkers(await res.json()); } catch (error) { console.error("Failed to fetch"); } };
+  const handleVerify = async (workerId: string, status: boolean) => { try { const res = await fetch(`${API_URL}/api/admin/workers/${workerId}/verify`, { method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ isVerified: status }) }); if (res.ok) fetchWorkers(); } catch (error) { console.error("Failed to update"); } };
 
   return (
     <div className="relative min-h-screen">
@@ -1213,7 +1213,7 @@ function AdminDashboard({ token, handleLogout, language }: { token: string | nul
                           <span className={`px-4 py-2 rounded-full text-sm font-medium ${worker.isVerified ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}`}>{worker.isVerified ? t('admin.verified') : t('admin.pending')}</span>
                           <div className="flex gap-2">
                             {!worker.isVerified ? (<motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handleVerify(worker._id, true)} className="bg-gradient-to-r from-emerald-600 to-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-emerald-700 hover:to-green-700 shadow-lg">{t('admin.approve')}</motion.button>) : (<motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handleVerify(worker._id, false)} className="bg-white/10 text-white/70 px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/20 border border-white/20">{t('admin.revoke')}</motion.button>)}
-                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={async () => { const currentSkills = worker.skills ? worker.skills.join(', ') : ""; const newSkills = prompt("Enter new skills separated by comma:", currentSkills); if (newSkills !== null) { const skillsArray = newSkills.split(',').map((s: string) => s.trim()); const res = await fetch(`http://localhost:5000/api/admin/workers/${worker._id}/update-skills`, { method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ skills: skillsArray }) }); if (res.ok) { alert("Skills updated!"); fetchWorkers(); } } }} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 shadow-lg">{t('admin.editSkills')}</motion.button>
+                            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={async () => { const currentSkills = worker.skills ? worker.skills.join(', ') : ""; const newSkills = prompt("Enter new skills separated by comma:", currentSkills); if (newSkills !== null) { const skillsArray = newSkills.split(',').map((s: string) => s.trim()); const res = await fetch(`${API_URL}/api/admin/workers/${worker._id}/update-skills`, { method: "PUT", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }, body: JSON.stringify({ skills: skillsArray }) }); if (res.ok) { alert("Skills updated!"); fetchWorkers(); } } }} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 shadow-lg">{t('admin.editSkills')}</motion.button>
                           </div>
                         </div>
                       </div>
@@ -1236,7 +1236,7 @@ function AdminDashboard({ token, handleLogout, language }: { token: string | nul
                     <div className="flex items-start justify-between gap-4 mb-6">
                       <div className="flex items-start gap-4 flex-1">
                         <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0"><Vote className="w-6 h-6 text-white" /></div>
-                        <div><h4 className="text-white font-bold text-lg">{proposal.title}</h4><p className="text-white/60 text-sm mt-1">{t('admin.proposedBy')}: {proposal.proposer}</p></div>
+                        <div><h4 className="text-white font-bold text-lg">{proposal.title}</h4><p className="text-white/60 text-sm mt-1">{t('admin.proposedBy')}: {proposal.proposedBy}</p></div>
                       </div>
                       <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleRemoveProposal(proposal._id)} className="bg-red-500/20 text-red-300 p-2.5 rounded-xl hover:bg-red-500/30 border border-red-500/30 transition group" title="Remove Proposal"><svg className="w-5 h-5 group-hover:text-red-200 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></motion.button>
                     </div>

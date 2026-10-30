@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Booking = require('../models/Booking');
 const WorkerProfile = require('../models/WorkerProfile');
-// const User = require('../models/User');
+const User = require('../models/User');
 const { protect } = require('../middleware/authMiddleware');
 
 // Create a new booking
@@ -139,9 +139,10 @@ router.post('/:id/review', protect, async (req, res) => {
     }
 
     // Add the review
+    const customer = await User.findById(req.user.id).select('name');
     workerProfile.reviews.push({
       customerId: req.user.id,
-      customerName: req.user.name,
+      customerName: customer?.name || '',
       rating: Number(rating),
       comment: comment || ''
     });

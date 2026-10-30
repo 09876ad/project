@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const Proposal = require('../models/Proposal');
+const User = require('../models/User');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
-// Apply middleware to all routes here (Only Admins can access)
+// Every route requires a logged-in user; reading and voting are open to
+// all members, while creating and deleting proposals stays admin-only.
 router.use(protect);
-router.use(adminOnly);
 
 // @route   GET /api/proposals
 // @desc    Get all proposals
@@ -23,9 +24,10 @@ router.get('/', async (req, res) => {
 router.post('/', adminOnly, async (req, res) => {
     try {
         const { title } = req.body;
+        const admin = await User.findById(req.user.id).select('name');
         const proposal = await Proposal.create({
             title,
-            proposedBy: req.user.name || 'Super Admin'
+            proposedBy: admin?.name || 'Super Admin'
         });
         res.status(201).json(proposal);
     } catch (error) {
