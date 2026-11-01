@@ -270,7 +270,7 @@ function CustomerDashboard({ token, language }: { token: string | null, language
   const activeBookingIds = activeBookings.map((b: any) => b._id).join(',');
 
   useEffect(() => {
-    const socket = io(API_URL);
+    const socket = io(API_URL, { auth: { token } });
     socketRef.current = socket;
 
     activeBookingIds
@@ -286,7 +286,7 @@ function CustomerDashboard({ token, language }: { token: string | null, language
       socket.off('worker_moved');
       socket.disconnect();
     };
-  }, [activeBookingIds]);
+  }, [activeBookingIds, token]);
 
   return (
     <div className="relative min-h-screen">
@@ -605,7 +605,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
     fetchProposals();
   }, []);
   useEffect(() => {
-    socketRef.current = io(API_URL, { query: { token } });
+    socketRef.current = io(API_URL, { auth: { token } });
     return () => {
       // Clean up socket connection
       if (socketRef.current) {
@@ -616,7 +616,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
         navigator.geolocation.clearWatch(trackingRef.current as number);
       }
     };
-  }, []);
+  }, [token]);
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}") as any;
 
 

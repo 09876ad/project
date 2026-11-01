@@ -5,10 +5,22 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const WorkerProfile = require('../models/WorkerProfile');
 const { protect } = require('../middleware/authMiddleware');
+const { rateLimit } = require('../middleware/rateLimit');
+
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: 'Too many login attempts. Please try again in 15 minutes.'
+});
+const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    message: 'Too many accounts created from this network. Please try again later.'
+});
 
 // @route   POST /api/auth/register
 // @desc    Register a new user
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
     try {
         const { name, email, password, role, phone, address } = req.body;
         const finalRole = role === 'worker' ? 'worker' : 'customer';
@@ -67,7 +79,7 @@ router.post('/register', async (req, res) => {
 
 // @route   POST /api/auth/login
 // @desc    Authenticate user & get token
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
 

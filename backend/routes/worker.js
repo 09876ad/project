@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const WorkerProfile = require('../models/WorkerProfile');
 const { protect } = require('../middleware/authMiddleware');
+
+// Everything customers need to book, and nothing private (reviews contain
+// customer PII; the cooperative fund balance is internal).
+const PUBLIC_PROFILE_FIELDS = 'skills experience rating reviewCount isVerified insuranceStatus';
 
 // GET /api/workers - Get workers by skill (for customer dashboard)
 router.get('/', async (req, res) => {
@@ -16,6 +21,7 @@ router.get('/', async (req, res) => {
         }
 
         const workerProfiles = await WorkerProfile.find(query)
+            .select(PUBLIC_PROFILE_FIELDS)
             .populate('userId', 'name');
 
         console.log('Found workers:', workerProfiles.length); // Debug log
@@ -29,7 +35,12 @@ router.get('/', async (req, res) => {
 // Get worker profile by user ID
 router.get('/profile/:userId', protect, async (req, res) => {
     try {
-        const profile = await WorkerProfile.findOne({ userId: req.params.userId });
+        if (!mongoose.isValidObjectId(req.params.userId)) {
+            return res.status(400).json({ message: 'Invalid worker id' });
+        }
+
+        const profile = await WorkerProfile.findOne({ userId: req.params.userId })
+            .select('-cooperativeFundBalance');
         if (!profile) {
             return res.status(404).json({ message: 'Profile not found' });
         }
@@ -48,9 +59,18 @@ router.put('/update-profile', protect, async (req, res) => {
 
         const { skills, experience } = req.body;
 
+        if (!Array.isArray(skills) || !skills.every((skill) => typeof skill === 'string')) {
+            return res.status(400).json({ message: 'Skills must be a list of service names' });
+        }
+
+        const years = Number(experience);
+        if (!Number.isFinite(years) || years < 0 || years > 50) {
+            return res.status(400).json({ message: 'Experience must be between 0 and 50 years' });
+        }
+
         const profile = await WorkerProfile.findOneAndUpdate(
             { userId: req.user.id },
-            { skills, experience },
+            { skills: skills.map((skill) => skill.trim()).filter(Boolean), experience: years },
             { new: true }
         );
 

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Proposal = require('../models/Proposal');
 const User = require('../models/User');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
@@ -23,7 +24,11 @@ router.get('/', async (req, res) => {
 // @desc    Create a new proposal
 router.post('/', adminOnly, async (req, res) => {
     try {
-        const { title } = req.body;
+        const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+        if (!title || title.length > 200) {
+            return res.status(400).json({ message: 'Title is required (max 200 characters)' });
+        }
+
         const admin = await User.findById(req.user.id).select('name');
         const proposal = await Proposal.create({
             title,
@@ -39,6 +44,10 @@ router.post('/', adminOnly, async (req, res) => {
 // @desc    Delete a proposal
 router.delete('/:id', adminOnly, async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ message: 'Invalid proposal id' });
+        }
+
         await Proposal.findByIdAndDelete(req.params.id);
         res.json({ message: 'Proposal removed' });
     } catch (error) {
@@ -51,6 +60,15 @@ router.delete('/:id', adminOnly, async (req, res) => {
 router.put('/:id/vote', async (req, res) => {
     try {
         const { voteType } = req.body;
+
+        if (voteType !== 'yes' && voteType !== 'no') {
+            return res.status(400).json({ message: 'voteType must be "yes" or "no"' });
+        }
+
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ message: 'Invalid proposal id' });
+        }
+
         const proposal = await Proposal.findById(req.params.id);
 
         if (!proposal) {
@@ -65,7 +83,7 @@ router.put('/:id/vote', async (req, res) => {
         // Increment counts
         if (voteType === 'yes') {
             proposal.yesVotes += 1;
-        } else if (voteType === 'no') {
+        } else {
             proposal.noVotes += 1;
         }
 

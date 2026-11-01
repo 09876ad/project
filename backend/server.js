@@ -4,8 +4,12 @@ const cors = require('cors');
 require('dotenv').config();
 const { Server } = require('socket.io');
 const http = require('http');
+const jwt = require('jsonwebtoken');
+const Booking = require('./models/Booking');
 
 const app = express();
+// Needed so req.ip reflects the client when deployed behind a proxy.
+app.set('trust proxy', 1);
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim())
@@ -79,24 +83,62 @@ const io = new Server(server, {
   }
 });
 
+// Socket.io Authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth && socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Not authorized, no token'));
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = { id: decoded.id, role: decoded.role };
+    next();
+  } catch (error) {
+    next(new Error('Not authorized, token failed'));
+  }
+});
+
+// A booking room is private to the customer and the worker on that booking.
+const getAccessibleBooking = async (bookingId, userId) => {
+  if (!mongoose.isValidObjectId(bookingId)) return null;
+  const booking = await Booking.findById(bookingId).select('customerId workerId');
+  if (!booking) return null;
+  const uid = String(userId);
+  if (String(booking.customerId) !== uid && String(booking.workerId) !== uid) return null;
+  return booking;
+};
+
 // Socket.io Connection Handler
 io.on('connection', (socket) => {
-  console.log('✅ Worker connected:', socket.id);
+  console.log('✅ Client connected:', socket.id, socket.user.role);
 
-  socket.on('join_booking', (bookingId) => {
-    socket.join(`booking_${bookingId}`);
-    console.log(`Worker joined booking_${bookingId}`);
+  socket.on('join_booking', async (bookingId) => {
+    try {
+      const booking = await getAccessibleBooking(bookingId, socket.user.id);
+      if (!booking) return;
+      socket.join(`booking_${bookingId}`);
+    } catch (error) {
+      console.error('join_booking error:', error.message);
+    }
   });
 
-  socket.on('update_location', (data) => {
-    console.log('📍 Location update:', data);
-    socket.to(`booking_${data.bookingId}`).emit('worker_moved', {
-      lat: data.lat,
-      lng: data.lng
-    });
+  socket.on('update_location', async (data) => {
+    try {
+      const { bookingId, lat, lng } = data || {};
+      if (!mongoose.isValidObjectId(bookingId)) return;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      // Only the assigned worker may broadcast their position for a booking.
+      const booking = await getAccessibleBooking(bookingId, socket.user.id);
+      if (!booking || String(booking.workerId) !== String(socket.user.id)) return;
+
+      socket.to(`booking_${bookingId}`).emit('worker_moved', { lat, lng });
+    } catch (error) {
+      console.error('update_location error:', error.message);
+    }
   });
 
   socket.on('disconnect', () => {
-    console.log(' Worker disconnected');
+    console.log(' Client disconnected');
   });
 });
