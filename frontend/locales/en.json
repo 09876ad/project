@@ -2,8 +2,10 @@
   "nav": {
     "platformName": "Skill Link",
     "logout": "Logout",
-    "editProfile": "️ Edit Profile",
-    "welcome": "Welcome"
+    "editProfile": "✏️ Edit Profile",
+    "welcome": "Welcome",
+    "supportPrompt": "Need help? Contact our support team",
+    "rights": "© 2026 Skill Link. All rights reserved."
   },
   "customer": {
     "dashboardTitle": "Customer Dashboard",
@@ -53,10 +55,14 @@
     "supportsFormats": "Supports: JPG, PNG (Max 5MB each)"
   },
   "worker": {
+    "dashboardTitle": "Worker Dashboard",
+    "dashboardSubtitle": "Manage your jobs, earnings, and cooperative welfare",
     "activeJobs": "Active Jobs",
     "history": "History",
     "welfare": "Welfare",
     "governance": "Governance",
+    "voteMatters": "Your Vote Matters! 🗳️",
+    "noProposals": "No active proposals at the moment.",
     "totalEarnings": "Total Earnings",
     "jobsCompleted": "Jobs Completed",
     "welfareFundLabel": "Cooperative Welfare Fund",

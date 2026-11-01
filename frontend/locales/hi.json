@@ -3,7 +3,9 @@
     "platformName": "Skill Link",
     "logout": "लॉग आउट",
     "editProfile": "✏️ प्रोफ़ाइल संपादित करें",
-    "welcome": "स्वागत है"
+    "welcome": "स्वागत है",
+    "supportPrompt": "मदद चाहिए? हमारी सहायता टीम से संपर्क करें",
+    "rights": "© 2026 Skill Link. सर्वाधिकार सुरक्षित।"
   },
   "customer": {
     "dashboardTitle": "ग्राहक डैशबोर्ड",
@@ -53,9 +55,14 @@
     "supportsFormats": "समर्थित: JPG, PNG (प्रत्येक अधिकतम 5MB)"
   },
   "worker": {
+    "dashboardTitle": "कार्यकर्ता डैशबोर्ड",
+    "dashboardSubtitle": "अपने कार्य, कमाई और सहकारी कल्याण का प्रबंधन करें",
     "activeJobs": "सक्रिय कार्य",
     "history": "इतिहास",
     "welfare": "कल्याण",
+    "governance": "शासन",
+    "voteMatters": "आपका वोट महत्वपूर्ण है! 🗳️",
+    "noProposals": "इस समय कोई सक्रिय प्रस्ताव नहीं है।",
     "totalEarnings": "कुल कमाई",
     "jobsCompleted": "पूर्ण किए गए कार्य",
     "welfareFundLabel": "सहकारी कल्याण कोष",

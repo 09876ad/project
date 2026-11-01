@@ -18,6 +18,8 @@ import { API_URL, apiFetch } from "@/lib/api";
 
 // Must match the flat diagnostic fee charged by POST /api/bookings
 const INSPECTION_FEE = 100;
+// Fallback shown when the browser has no location permission (demo city).
+const DEFAULT_CUSTOMER_LOCATION = { lat: 20.2961, lng: 85.8245 };
 
 
 
@@ -99,6 +101,7 @@ function CustomerDashboard({ token, language }: { token: string | null, language
   const [minDateTime, setMinDateTime] = useState("");
   const [activeTab, setActiveTab] = useState<'browse' | 'active' | 'history'>('browse');
   const [workerLocation, setWorkerLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [customerLocation, setCustomerLocation] = useState(DEFAULT_CUSTOMER_LOCATION);
   const socketRef = useRef<any>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedBookingForReview, setSelectedBookingForReview] = useState<any>(null);
@@ -288,6 +291,14 @@ function CustomerDashboard({ token, language }: { token: string | null, language
     };
   }, [activeBookingIds, token]);
 
+  useEffect(() => {
+    if (activeTab !== 'active' || activeBookings.length === 0 || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => setCustomerLocation({ lat: coords.latitude, lng: coords.longitude }),
+      () => { /* keep the fallback location when permission is unavailable */ }
+    );
+  }, [activeTab, activeBookings.length]);
+
   return (
     <div className="relative min-h-screen">
       <AdminBackground />
@@ -423,10 +434,7 @@ function CustomerDashboard({ token, language }: { token: string | null, language
 
                     <LiveTrackingMap
                       workerLocation={workerLocation}
-                      customerLocation={{
-                        lat: 20.2961, // Replace with actual customer coords
-                        lng: 85.8245
-                      }}
+                      customerLocation={customerLocation}
                       title=" Live Worker Location"
                     />
 
@@ -567,14 +575,14 @@ function CustomerDashboard({ token, language }: { token: string | null, language
         transition={{ delay: 0.5 }}
         className="mt-12 mb-8 pt-6 border-t border-white/20 text-center bg-black/30 backdrop-blur-md rounded-2xl p-6"
       >
-        <p className="text-white/80 text-sm mb-2">Need help? Contact our support team</p>
+        <p className="text-white/80 text-sm mb-2">{t('nav.supportPrompt')}</p>
         <a
           href="mailto:mdhruv6348@gmail.com"
           className="text-indigo-300 hover:text-white font-semibold transition flex items-center justify-center gap-2 text-lg"
         >
-          <Mail className="w-5 h-5" /> admin@skilllink.com
+          <Mail className="w-5 h-5" /> mdhruv6348@gmail.com
         </a>
-        <p className="text-white/50 text-xs mt-4">© 2026 Skill Link. All rights reserved.</p>
+        <p className="text-white/50 text-xs mt-4">{t('nav.rights')}</p>
       </motion.footer>
     </div>
 
@@ -760,8 +768,8 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Worker Dashboard</h1>
-            <p className="text-white/70">Manage your jobs, earnings, and cooperative welfare</p>
+            <h1 className="text-4xl font-bold text-white mb-2">{t('worker.dashboardTitle')}</h1>
+            <p className="text-white/70">{t('worker.dashboardSubtitle')}</p>
           </div>
         </motion.div>
 
@@ -952,7 +960,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
                 <p className="text-emerald-200 text-sm mb-2">{t('worker.currentFundBalance')}</p>
                 <p className="text-5xl font-bold text-white mb-6">₹{totalWelfareContribution}</p>
                 <div className="w-full bg-emerald-900/50 rounded-full h-3 mb-2"><div className="bg-emerald-400 h-3 rounded-full" style={{ width: '82%' }}></div></div>
-                <p className="text-xs text-emerald-300 mb-6">82% to Full Insurance Coverage</p>
+                <p className="text-xs text-emerald-300 mb-6">{t('worker.insuranceCoverage')}</p>
                 <button className="w-full bg-emerald-600 text-white py-3 rounded-xl font-medium hover:bg-emerald-700 transition shadow-lg">{t('worker.viewInsuranceDetails')}</button>
               </motion.div>
             </div>
@@ -962,9 +970,9 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
           {activeTab === 'governance' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-white">Cooperative Governance</h3>
+                <h3 className="text-2xl font-bold text-white">{t('admin.cooperativeGovernance')}</h3>
                 <div className="bg-indigo-500/20 border border-indigo-500/30 px-4 py-2 rounded-xl">
-                  <p className="text-indigo-200 text-sm">Your Vote Matters! 🗳️</p>
+                  <p className="text-indigo-200 text-sm">{t('worker.voteMatters')}</p>
                 </div>
               </div>
 
@@ -973,7 +981,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
                   <div className="inline-block p-6 bg-white/5 rounded-full mb-4">
                     <Vote className="w-12 h-12 text-white/30" />
                   </div>
-                  <p className="text-white/60 text-lg">No active proposals at the moment.</p>
+                  <p className="text-white/60 text-lg">{t('worker.noProposals')}</p>
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -992,7 +1000,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
                           </div>
                           <div>
                             <h4 className="text-white font-bold text-lg">{proposal.title}</h4>
-                            <p className="text-white/60 text-sm mt-1">Proposed by: {proposal.proposedBy}</p>
+                            <p className="text-white/60 text-sm mt-1">{t('admin.proposedBy')}: {proposal.proposedBy}</p>
                           </div>
                         </div>
                       </div>
@@ -1002,7 +1010,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
                         {/* YES Votes */}
                         <div>
                           <div className="flex justify-between mb-2">
-                            <span className="text-emerald-300 font-medium">Yes</span>
+                            <span className="text-emerald-300 font-medium">{t('admin.yes')}</span>
                             <span className="text-white font-bold">
                               {proposal.yesVotes + proposal.noVotes === 0 ? 0 : Math.round((proposal.yesVotes / (proposal.yesVotes + proposal.noVotes)) * 100)}%
                             </span>
@@ -1017,13 +1025,13 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
                               className="h-full bg-gradient-to-r from-emerald-500 to-green-500 rounded-full"
                             />
                           </div>
-                          <p className="text-white/60 text-xs mt-1">{proposal.yesVotes} votes</p>
+                          <p className="text-white/60 text-xs mt-1">{proposal.yesVotes} {t('admin.votes')}</p>
                         </div>
 
                         {/* NO Votes */}
                         <div>
                           <div className="flex justify-between mb-2">
-                            <span className="text-red-300 font-medium">No</span>
+                            <span className="text-red-300 font-medium">{t('admin.no')}</span>
                             <span className="text-white font-bold">
                               {proposal.yesVotes + proposal.noVotes === 0 ? 0 : Math.round((proposal.noVotes / (proposal.yesVotes + proposal.noVotes)) * 100)}%
                             </span>
@@ -1038,7 +1046,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
                               className="h-full bg-gradient-to-r from-red-500 to-rose-500 rounded-full"
                             />
                           </div>
-                          <p className="text-white/60 text-xs mt-1">{proposal.noVotes} votes</p>
+                          <p className="text-white/60 text-xs mt-1">{proposal.noVotes} {t('admin.votes')}</p>
                         </div>
                       </div>
 
@@ -1058,7 +1066,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
                                   : 'bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:from-emerald-700 hover:to-green-700'
                                   }`}
                               >
-                                {hasVoted ? 'Voted Yes ✓' : 'Vote Yes'}
+                                {hasVoted ? `${t('admin.votedYes')} ✓` : t('admin.voteYes')}
                               </motion.button>
 
                               <motion.button
@@ -1071,7 +1079,7 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
                                   : 'bg-gradient-to-r from-red-600 to-rose-600 text-white hover:from-red-700 hover:to-rose-700'
                                   }`}
                               >
-                                {hasVoted ? 'Voted No ✓' : 'Vote No'}
+                                {hasVoted ? `${t('admin.votedNo')} ✓` : t('admin.voteNo')}
                               </motion.button>
                             </>
                           );
@@ -1120,14 +1128,14 @@ function WorkerDashboard({ token, language }: { token: string | null; language: 
         transition={{ delay: 0.5 }}
         className="mt-12 mb-8 pt-6 border-t border-white/20 text-center bg-black/30 backdrop-blur-md rounded-2xl p-6"
       >
-        <p className="text-white/80 text-sm mb-2">Need help? Contact our support team</p>
+        <p className="text-white/80 text-sm mb-2">{t('nav.supportPrompt')}</p>
         <a
           href="mailto:mdhruv6348@gmail.com"
           className="text-indigo-300 hover:text-white font-semibold transition flex items-center justify-center gap-2 text-lg"
         >
-          <Mail className="w-5 h-5" /> admin@skilllink.com
+          <Mail className="w-5 h-5" /> mdhruv6348@gmail.com
         </a>
-        <p className="text-white/50 text-xs mt-4">© 2026 Skill Link. All rights reserved.</p>
+        <p className="text-white/50 text-xs mt-4">{t('nav.rights')}</p>
       </motion.footer>
     </div>
 

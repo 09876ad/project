@@ -32,11 +32,35 @@ const Popup = dynamic(() => import('react-leaflet').then((mod) => mod.Popup), { 
 
 interface WorkerMapProps {
   workers: any[];
+  center?: [number, number];
 }
 
-export default function WorkerMap({ workers }: WorkerMapProps) {
+// Demo accounts are based in Bhubaneswar, so the map opens on that city.
+const DEFAULT_CENTER: [number, number] = [20.2961, 85.8245];
+
+function hashString(value: string) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash);
+}
+
+// There are no worker coordinates in the data model, so derive a stable spot
+// near the city centre from the worker id instead of re-randomising each render.
+function markerPosition(worker: any, index: number, center: [number, number]): [number, number] {
+  if (typeof worker?.location?.lat === 'number' && typeof worker?.location?.lng === 'number') {
+    return [worker.location.lat, worker.location.lng];
+  }
+  const seed = String(worker?._id ?? index);
+  const lat = center[0] + ((hashString(seed) % 200) - 100) / 5000;
+  const lng = center[1] + ((hashString(`${seed}-lng`) % 200) - 100) / 5000;
+  return [lat, lng];
+}
+
+export default function WorkerMap({ workers, center = DEFAULT_CENTER }: WorkerMapProps) {
   const [mounted, setMounted] = useState(false);
-  const center: [number, number] = [19.0760, 72.8777]; // Default center (Mumbai)
 
   useEffect(() => {
     setMounted(true);
@@ -54,12 +78,8 @@ export default function WorkerMap({ workers }: WorkerMapProps) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {workers.map((worker, index) => {
-          // Generate slightly different positions for demo
-          const lat = center[0] + (Math.random() - 0.5) * 0.05;
-          const lng = center[1] + (Math.random() - 0.5) * 0.05;
-          
           return (
-            <Marker key={index} position={[lat, lng]}>
+            <Marker key={worker._id ?? index} position={markerPosition(worker, index, center)}>
               <Popup>
                 <div className="text-sm">
                   <strong>{worker.userId?.name}</strong><br />
