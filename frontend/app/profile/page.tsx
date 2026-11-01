@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_URL } from "@/lib/api";
+import { API_URL, apiFetch } from "@/lib/api";
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -31,7 +31,7 @@ export default function ProfilePage() {
 
     const fetchProfile = async (token: string, userId: string) => {
         try {
-            const res = await fetch(`${API_URL}/api/workers/profile/${userId}`, {
+            const res = await apiFetch(`${API_URL}/api/workers/profile/${userId}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
@@ -56,7 +56,7 @@ export default function ProfilePage() {
     const handleUpdate = async () => {
         const token = localStorage.getItem("token");
         try {
-            const res = await fetch(API_URL + "/api/workers/update-profile", {
+            const res = await apiFetch(API_URL + "/api/workers/update-profile", {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
