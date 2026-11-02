@@ -1,10 +1,20 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Background from "@/components/Background";
 import { API_URL } from "@/lib/api";
+import { isRole, storeSession } from "@/lib/session";
 import { User, Mail, Lock, Phone, MapPin, Briefcase } from "lucide-react";
+
+interface RegisterResponse {
+    token?: string;
+    _id?: string;
+    name?: string;
+    role?: string;
+    message?: string;
+}
 
 export default function Register() {
     const router = useRouter();
@@ -36,16 +46,15 @@ export default function Register() {
                 body: JSON.stringify(formData),
             });
 
-            const data = await res.json();
+            const data = (await res.json()) as RegisterResponse;
 
-            if (res.ok) {
-                localStorage.setItem("token", data.token);
-                localStorage.setItem("user", JSON.stringify({ _id: data._id, name: data.name, role: data.role }));
+            if (res.ok && data.token && data._id && data.name && isRole(data.role)) {
+                storeSession(data.token, { _id: data._id, name: data.name, role: data.role });
                 router.push("/dashboard");
             } else {
                 setError(data.message || "Registration failed");
             }
-        } catch (err) {
+        } catch {
             setError("Something went wrong. Is the backend running?");
         } finally {
             setIsLoading(false);
@@ -207,9 +216,9 @@ export default function Register() {
                     {/* Footer */}
                     <p className="mt-6 text-center text-sm font-medium" style={{ color: '#e2e8f0' }}>
                         Already have an account?{' '}
-                        <a href="/login" className="font-semibold transition hover:text-white" style={{ color: '#a5b4fc' }}>
+                        <Link href="/login" className="font-semibold transition hover:text-white" style={{ color: '#a5b4fc' }}>
                             Login
-                        </a>
+                        </Link>
                     </p>
                 </div>
 

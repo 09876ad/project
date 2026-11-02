@@ -1,10 +1,20 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Background from "@/components/Background";
 import { API_URL } from "@/lib/api";
+import { isRole, storeSession } from "@/lib/session";
 import { Mail, Lock } from "lucide-react";
+
+interface LoginResponse {
+    token?: string;
+    _id?: string;
+    name?: string;
+    role?: string;
+    message?: string;
+}
 
 export default function Login() {
     const router = useRouter();
@@ -24,16 +34,15 @@ export default function Login() {
                 body: JSON.stringify(formData),
             });
 
-            const data = await res.json();
+            const data = (await res.json()) as LoginResponse;
 
-            if (res.ok) {
-                localStorage.setItem("token", data.token);
-                localStorage.setItem("user", JSON.stringify({ _id: data._id, name: data.name, role: data.role }));
+            if (res.ok && data.token && data._id && data.name && isRole(data.role)) {
+                storeSession(data.token, { _id: data._id, name: data.name, role: data.role });
                 router.push("/dashboard");
             } else {
                 setError(data.message || "Login failed");
             }
-        } catch (err) {
+        } catch {
             setError("Something went wrong. Is the backend running?");
         } finally {
             setIsLoading(false);
@@ -61,7 +70,7 @@ export default function Login() {
                     >
                         <h1 className="text-4xl font-bold text-white mb-2">Welcome Back</h1>
                         <p className="text-white/90 text-sm font-medium" style={{ color: '#e2e8f0' }}>
-                            Skill Link 
+                            SkillLink
                         </p>
                     </motion.div>
 
@@ -112,10 +121,10 @@ export default function Login() {
                     </form>
 
                     <p className="mt-6 text-center text-sm text-white/90 font-medium" style={{color: '#e2e8f0'}}>
-                        Don't have an account?{' '}
-                        <a href="/register" className="text-indigo-300 hover:text-white font-semibold transition">
+                        Don&apos;t have an account?{' '}
+                        <Link href="/register" className="text-indigo-300 hover:text-white font-semibold transition">
                             Register
-                        </a>
+                        </Link>
                     </p>
                 </div>
 

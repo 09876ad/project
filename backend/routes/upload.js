@@ -49,7 +49,7 @@ router.post('/image', protect, upload.single('photo'), async (req, res) => {
 
         // Upload to Cloudinary
         const result = await cloudinary.uploader.upload(dataURI, {
-            folder: 'coopgig_bookings',
+            folder: 'skilllink_bookings',
             width: 800,
             crop: 'scale'
         });

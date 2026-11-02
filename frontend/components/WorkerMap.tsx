@@ -1,38 +1,40 @@
 "use client";
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useState } from 'react';
 import L from 'leaflet';
 
-// Fix for default marker icons in Leaflet - ONLY run on client
-if (typeof window !== 'undefined') {
-  import('leaflet').then((L) => {
-    const markerIcon2x = require('leaflet/dist/images/marker-icon-2x.png');
-    const markerIcon = require('leaflet/dist/images/marker-icon.png');
-    const markerShadow = require('leaflet/dist/images/marker-shadow.png');
-    
-    // @ts-ignore
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: markerIcon2x.default || markerIcon2x,
-      iconUrl: markerIcon.default || markerIcon,
-      shadowUrl: markerShadow.default || markerShadow,
-    });
-  });
-}
+// A divIcon keeps markers independent of Leaflet's PNG assets, which Turbopack
+// does not expose with a usable `src` when imported from node_modules.
+const workerMarkerIcon = L.divIcon({
+  className: 'skilllink-marker',
+  html: '<span style="display:block;width:20px;height:20px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#4f46e5;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.45)"></span>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 20],
+  popupAnchor: [0, -20],
+});
 
 // Dynamically import Map components with NO SSR
-const MapContainer = dynamic(() => import('react-leaflet').then((mod) => mod.MapContainer), { 
+const MapContainer = dynamic(() => import('react-leaflet').then((mod) => mod.MapContainer), {
   ssr: false,
-  loading: () => <div className="h-[300px] w-full bg-gray-100 flex items-center justify-center">Loading map...</div>
+  loading: () => <div className="h-[300px] w-full animate-pulse bg-white/5" />
 });
 const TileLayer = dynamic(() => import('react-leaflet').then((mod) => mod.TileLayer), { ssr: false });
 const Marker = dynamic(() => import('react-leaflet').then((mod) => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import('react-leaflet').then((mod) => mod.Popup), { ssr: false });
 
+export interface WorkerSummary {
+  _id: string;
+  userId?: { name?: string };
+  rating?: number;
+  insuranceStatus?: string;
+  location?: { lat: number; lng: number };
+}
+
 interface WorkerMapProps {
-  workers: any[];
+  workers: WorkerSummary[];
   center?: [number, number];
+  ratingLabel?: string;
+  statusLabel?: string;
 }
 
 // Demo accounts are based in Bhubaneswar, so the map opens on that city.
@@ -49,27 +51,22 @@ function hashString(value: string) {
 
 // There are no worker coordinates in the data model, so derive a stable spot
 // near the city centre from the worker id instead of re-randomising each render.
-function markerPosition(worker: any, index: number, center: [number, number]): [number, number] {
-  if (typeof worker?.location?.lat === 'number' && typeof worker?.location?.lng === 'number') {
+function markerPosition(worker: WorkerSummary, index: number, center: [number, number]): [number, number] {
+  if (typeof worker.location?.lat === 'number' && typeof worker.location?.lng === 'number') {
     return [worker.location.lat, worker.location.lng];
   }
-  const seed = String(worker?._id ?? index);
+  const seed = String(worker._id ?? index);
   const lat = center[0] + ((hashString(seed) % 200) - 100) / 5000;
   const lng = center[1] + ((hashString(`${seed}-lng`) % 200) - 100) / 5000;
   return [lat, lng];
 }
 
-export default function WorkerMap({ workers, center = DEFAULT_CENTER }: WorkerMapProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <div className="h-[300px] w-full bg-gray-100 rounded-lg flex items-center justify-center">Loading map...</div>;
-  }
-
+export default function WorkerMap({
+  workers,
+  center = DEFAULT_CENTER,
+  ratingLabel = 'Rating',
+  statusLabel = 'Status',
+}: WorkerMapProps) {
   return (
     <div className="h-[300px] w-full rounded-lg overflow-hidden border mt-4 z-0">
       <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
@@ -79,12 +76,12 @@ export default function WorkerMap({ workers, center = DEFAULT_CENTER }: WorkerMa
         />
         {workers.map((worker, index) => {
           return (
-            <Marker key={worker._id ?? index} position={markerPosition(worker, index, center)}>
+            <Marker key={worker._id ?? index} position={markerPosition(worker, index, center)} icon={workerMarkerIcon}>
               <Popup>
                 <div className="text-sm">
                   <strong>{worker.userId?.name}</strong><br />
-                  Rating: {worker.rating || 0} ⭐<br />
-                  Status: {worker.insuranceStatus || 'N/A'}
+                  {ratingLabel}: {worker.rating || 0} ⭐<br />
+                  {statusLabel}: {worker.insuranceStatus || 'N/A'}
                 </div>
               </Popup>
             </Marker>

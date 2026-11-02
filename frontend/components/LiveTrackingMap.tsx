@@ -1,30 +1,39 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+type LatLng = { lat: number; lng: number };
 
-const DefaultIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
+const DEFAULT_CENTER: LatLng = { lat: 20.2961, lng: 85.8245 };
 
-L.Marker.prototype.options.icon = DefaultIcon;
+// divIcons avoid Leaflet's PNG assets, which Turbopack does not expose with a
+// usable `src` when imported from node_modules.
+function pinIcon(color: string) {
+    return L.divIcon({
+        className: 'skilllink-marker',
+        html: `<span style="display:block;width:20px;height:20px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.45)"></span>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 20],
+        popupAnchor: [0, -20],
+    });
+}
+
+const WorkerIcon = pinIcon('#4f46e5');
+const CustomerIcon = pinIcon('#059669');
 
 interface LiveTrackingMapProps {
-    workerLocation: { lat: number; lng: number } | null;
-    customerLocation: { lat: number; lng: number };
+    workerLocation: LatLng | null;
+    customerLocation?: LatLng | null;
+    fallbackCenter?: LatLng;
     title?: string;
+    workerLabel?: string;
+    customerLabel?: string;
 }
 
 // Component to update map center when worker moves
-function MapUpdater({ workerLocation }: { workerLocation: { lat: number; lng: number } | null }) {
+function MapUpdater({ workerLocation }: { workerLocation: LatLng | null }) {
     const map = useMap();
 
     useEffect(() => {
@@ -38,25 +47,20 @@ function MapUpdater({ workerLocation }: { workerLocation: { lat: number; lng: nu
 
 export default function LiveTrackingMap({
     workerLocation,
-    customerLocation,
-    title = "Live Tracking"
+    customerLocation = null,
+    fallbackCenter = DEFAULT_CENTER,
+    title,
+    workerLabel = 'Worker location',
+    customerLabel = 'Customer location',
 }: LiveTrackingMapProps) {
-    const [isMounted, setIsMounted] = useState(false);
-
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
-
-    if (!isMounted) {
-        return <div className="h-[250px] bg-white/10 rounded-xl flex items-center justify-center text-white/60">Loading map...</div>;
-    }
+    const center = workerLocation ?? customerLocation ?? fallbackCenter;
 
     return (
         <div className="mt-4">
             {title && <p className="text-white/80 text-sm font-semibold mb-2">{title}</p>}
             <div className="h-[250px] w-full rounded-xl overflow-hidden border border-white/20 shadow-lg">
                 <MapContainer
-                    center={workerLocation ? [workerLocation.lat, workerLocation.lng] : [customerLocation.lat, customerLocation.lng]}
+                    center={[center.lat, center.lng]}
                     zoom={15}
                     style={{ height: '100%', width: '100%' }}
                     scrollWheelZoom={false}
@@ -66,23 +70,21 @@ export default function LiveTrackingMap({
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
 
-                    {/* Customer Location Marker */}
-                    <Marker position={[customerLocation.lat, customerLocation.lng]} icon={DefaultIcon}>
-                        <Popup>
-                            <div className="text-slate-800">
-                                <strong>Customer Location</strong><br />
-                                Destination
-                            </div>
-                        </Popup>
-                    </Marker>
-
-                    {/* Worker Location Marker (Moving) */}
-                    {workerLocation && (
-                        <Marker position={[workerLocation.lat, workerLocation.lng]} icon={DefaultIcon}>
+                    {customerLocation && (
+                        <Marker position={[customerLocation.lat, customerLocation.lng]} icon={CustomerIcon}>
                             <Popup>
                                 <div className="text-slate-800">
-                                    <strong>Worker Location</strong><br />
-                                    On the way
+                                    <strong>{customerLabel}</strong>
+                                </div>
+                            </Popup>
+                        </Marker>
+                    )}
+
+                    {workerLocation && (
+                        <Marker position={[workerLocation.lat, workerLocation.lng]} icon={WorkerIcon}>
+                            <Popup>
+                                <div className="text-slate-800">
+                                    <strong>{workerLabel}</strong>
                                 </div>
                             </Popup>
                         </Marker>

@@ -30,7 +30,7 @@ export default function Home() {
 
       <div className="relative z-10 flex min-h-screen flex-col">
         <header className="flex items-center justify-between px-6 py-6 sm:px-10">
-          <span className="text-xl font-bold text-white">Skill Link</span>
+          <span className="text-xl font-bold text-white">SkillLink</span>
           <nav className="flex items-center gap-3">
             <Link
               href="/login"
@@ -97,7 +97,7 @@ export default function Home() {
         </main>
 
         <footer className="px-6 py-8 text-center text-xs text-white/50 sm:px-10">
-          © 2026 Skill Link. A cooperative-owned gig platform.
+          © 2026 SkillLink. A cooperative-owned gig platform.
         </footer>
       </div>
     </div>

@@ -2,48 +2,54 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL, apiFetch } from "@/lib/api";
+import { useSession } from "@/lib/session";
+
+interface WorkerProfileData {
+    skills?: string[];
+    experience?: number;
+}
 
 export default function ProfilePage() {
     const router = useRouter();
-    const [user, setUser] = useState<any>(null);
-    const [profile, setProfile] = useState<any>(null);
+    const session = useSession();
+    const user = session?.user ?? null;
+    const token = session?.token ?? null;
     const [skills, setSkills] = useState<string[]>([]);
     const [experience, setExperience] = useState(0);
     const [message, setMessage] = useState("");
 
     useEffect(() => {
-        const storedUser = localStorage.getItem("user");
-        const token = localStorage.getItem("token");
-
-        if (!token || !storedUser) {
-            router.push("/login");
-            return;
+        if (session && !token) {
+            router.replace("/login");
         }
+    }, [session, token, router]);
 
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
+    useEffect(() => {
+        if (!token || !user || user.role !== "worker") return;
+        let cancelled = false;
 
-        // Fetch worker profile
-        if (userData.role === 'worker') {
-            fetchProfile(token, userData._id || userData.id);
-        }
-    }, [router]);
-
-    const fetchProfile = async (token: string, userId: string) => {
-        try {
-            const res = await apiFetch(`${API_URL}/api/workers/profile/${userId}`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setProfile(data);
-                setSkills(data.skills || []);
-                setExperience(data.experience || 0);
+        const loadProfile = async () => {
+            try {
+                const res = await apiFetch(`${API_URL}/api/workers/profile/${user._id}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (!res.ok) {
+                    if (!cancelled) setMessage("Failed to load profile");
+                    return;
+                }
+                const data = (await res.json()) as WorkerProfileData;
+                if (!cancelled) {
+                    setSkills(data.skills || []);
+                    setExperience(data.experience || 0);
+                }
+            } catch {
+                if (!cancelled) setMessage("Failed to load profile");
             }
-        } catch (error) {
-            console.error("Failed to fetch profile");
-        }
-    };
+        };
+
+        void loadProfile();
+        return () => { cancelled = true; };
+    }, [token, user]);
 
     const handleSkillToggle = (skill: string) => {
         if (skills.includes(skill)) {
@@ -54,7 +60,7 @@ export default function ProfilePage() {
     };
 
     const handleUpdate = async () => {
-        const token = localStorage.getItem("token");
+        if (!token) return;
         try {
             const res = await apiFetch(API_URL + "/api/workers/update-profile", {
                 method: "PUT",
@@ -69,14 +75,22 @@ export default function ProfilePage() {
                 setMessage("✅ Profile updated successfully!");
                 setTimeout(() => setMessage(""), 3000);
             } else {
-                setMessage(" Failed to update profile");
+                setMessage("❌ Failed to update profile");
             }
-        } catch (error) {
+        } catch {
             setMessage("❌ Something went wrong");
         }
     };
 
-    if (!user || user.role !== 'worker') {
+    if (!session) {
+        return <div className="p-8 text-center">Loading...</div>;
+    }
+
+    if (!user) {
+        return null;
+    }
+
+    if (user.role !== 'worker') {
         return <div className="p-8 text-center">Only workers can edit their profile</div>;
     }
 

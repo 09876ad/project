@@ -1,13 +1,28 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import SessionWatcher from "@/components/SessionWatcher";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "Skill Link",
-  description: "Fair wages, worker welfare, and verified services.",
-  manifest: "/manifest.json", // ➕ ADD THIS LINE 
+  title: "SkillLink",
+  description: "SkillLink — fair wages, worker welfare, and verified services.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: ["/icon-192.png", "/icon-512.png"],
+    apple: "/icon-192.png",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({
@@ -17,13 +32,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        {/* ➕ ADD THESE META TAGS FOR MOBILE APP FEEL ➕ */}
-        <meta name="theme-color" content="#2563eb" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-      </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.variable}>
+        <SessionWatcher />
+        {children}
+      </body>
     </html>
   );
 }

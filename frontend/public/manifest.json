@@ -1,7 +1,7 @@
 {
-    "name": "Cooperative Gig Services",
-    "short_name": "CoopGig",
-    "description": "A cooperative-owned digital service marketplace",
+    "name": "SkillLink",
+    "short_name": "SkillLink",
+    "description": "SkillLink — fair wages, worker welfare, and verified services.",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",

@@ -73,7 +73,7 @@ if (MONGO_URI) {
 // Basic Route
 app.get('/', (req, res) => {
   res.json({
-    message: 'Cooperative Gig Platform API is running!',
+    message: 'SkillLink API is running!',
     status: MONGO_URI ? 'Database Connected' : 'Database Not Connected'
   });
 });
