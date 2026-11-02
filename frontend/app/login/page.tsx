@@ -128,29 +128,31 @@ export default function Login() {
                     </p>
                 </div>
 
-                {/* Demo Credentials */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="mt-6 p-4 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 text-white"
-                >
-                    <p className="text-indigo-300 text-[10px] text-center mb-3 font-bold tracking-widest uppercase">
-                        Demo Credentials
-                    </p>
+                {/* Demo credentials are a local convenience only. */}
+                {process.env.NODE_ENV !== 'production' && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-6 p-4 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 text-white"
+                    >
+                        <p className="text-indigo-300 text-[10px] text-center mb-3 font-bold tracking-widest uppercase">
+                            Demo Credentials
+                        </p>
 
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center bg-white/10 px-3 py-2 rounded-lg">
-                            <span className="text-indigo-300 font-bold text-sm">Admin:</span>
-                            <span className="text-white font-mono text-xs tracking-wide">admin@ncct.gov.in / admin123</span>
-                        </div>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center bg-white/10 px-3 py-2 rounded-lg">
+                                <span className="text-indigo-300 font-bold text-sm">Admin:</span>
+                                <span className="text-white font-mono text-xs tracking-wide">admin@ncct.gov.in / admin123</span>
+                            </div>
 
-                        <div className="flex justify-between items-center bg-white/10 px-3 py-2 rounded-lg">
-                            <span className="text-indigo-300 font-bold text-sm">Worker:</span>
-                            <span className="text-white font-mono text-xs tracking-wide">raju@coop.com / password123</span>
+                            <div className="flex justify-between items-center bg-white/10 px-3 py-2 rounded-lg">
+                                <span className="text-indigo-300 font-bold text-sm">Worker:</span>
+                                <span className="text-white font-mono text-xs tracking-wide">raju@coop.com / password123</span>
+                            </div>
                         </div>
-                    </div>
-                </motion.div>
+                    </motion.div>
+                )}
             </motion.div>
         </div>
     );
