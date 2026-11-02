@@ -344,24 +344,20 @@ function CustomerDashboard({ token, language }: { token: string; language: Langu
     }
 
     const now = new Date();
-    const maxDate = new Date();
-    maxDate.setDate(now.getDate() + 7);
 
     if (selectedDate < now) {
       alert(t('customer.errorPastDate'));
       return;
     }
 
-    const isToday = selectedDate.toDateString() === now.toDateString();
-    if (isToday) {
-      const thirtyMinLater = new Date(now.getTime() + 30 * 60 * 1000);
-      if (selectedDate < thirtyMinLater) {
-        alert(t('customer.errorSameDayWindow'));
-        return;
-      }
+    // Compare against the window captured when the picker opened so a choice
+    // made at the minimum stays valid while the modal is open.
+    if (selectedDate < new Date(minDateTime)) {
+      alert(t('customer.errorSameDayWindow'));
+      return;
     }
 
-    if (selectedDate > maxDate) {
+    if (selectedDate > new Date(maxDateTime)) {
       alert(t('customer.errorTooFar'));
       return;
     }
@@ -378,7 +374,9 @@ function CustomerDashboard({ token, language }: { token: string; language: Langu
         body: JSON.stringify({
           workerId: selectedWorker.userId._id,
           serviceId: selectedService._id,
-          date: bookingDate,
+          // Send an absolute instant so the server never has to guess the
+          // customer's timezone from a wall-clock string.
+          date: selectedDate.toISOString(),
           photos: selectedPhotos
         })
       });

@@ -78,7 +78,7 @@
     "errorSelectDate": "Please select a date and time.",
     "errorInvalidDate": "That date and time is not valid.",
     "errorPastDate": "Cannot book for past dates!",
-    "errorSameDayWindow": "For same-day bookings, please schedule at least 30 minutes in advance.",
+    "errorSameDayWindow": "Please schedule the booking at least 30 minutes in advance.",
     "errorTooFar": "You can only book up to 7 days in advance.",
     "bookingSuccess": "Booking successful!",
     "bookingFailed": "Booking failed.",

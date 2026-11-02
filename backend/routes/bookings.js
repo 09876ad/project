@@ -38,6 +38,9 @@ router.post('/', protect, async (req, res) => {
     if (scheduledAt.getTime() < Date.now() - 5 * 60 * 1000) {
       return res.status(400).json({ message: 'Booking date cannot be in the past' });
     }
+    if (scheduledAt.getTime() > Date.now() + 7 * 24 * 60 * 60 * 1000) {
+      return res.status(400).json({ message: 'Booking date cannot be more than 7 days ahead' });
+    }
 
     const [worker, service, workerProfile] = await Promise.all([
       User.findById(workerId).select('role'),
