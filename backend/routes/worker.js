@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
         res.json(workerProfiles);
     } catch (error) {
         console.error('Error fetching workers:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
@@ -37,6 +37,11 @@ router.get('/profile/:userId', protect, async (req, res) => {
     try {
         if (!mongoose.isValidObjectId(req.params.userId)) {
             return res.status(400).json({ message: 'Invalid worker id' });
+        }
+
+        const isSelf = String(req.user.id) === String(req.params.userId);
+        if (!isSelf && req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied' });
         }
 
         const profile = await WorkerProfile.findOne({ userId: req.params.userId })

@@ -1,15 +1,29 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
 require('dotenv').config();
 const { Server } = require('socket.io');
 const http = require('http');
 const jwt = require('jsonwebtoken');
 const Booking = require('./models/Booking');
 
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  const message = 'JWT_SECRET must be at least 32 characters long.';
+  if (process.env.NODE_ENV === 'production') {
+    console.error(`❌ ${message}`);
+    process.exit(1);
+  }
+  console.warn(`⚠️  ${message} Rotate it before deploying.`);
+}
+
 const app = express();
 // Needed so req.ip reflects the client when deployed behind a proxy.
 app.set('trust proxy', 1);
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim())

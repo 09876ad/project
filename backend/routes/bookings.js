@@ -85,7 +85,7 @@ router.post('/', protect, async (req, res) => {
 
     res.status(201).json(booking);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -238,7 +238,7 @@ router.post('/:id/review', protect, async (req, res) => {
     res.json({ message: 'Review submitted successfully!', workerProfile });
   } catch (error) {
     console.error('Review error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -294,7 +294,7 @@ router.put('/:id/submit-quote', protect, async (req, res) => {
     res.json({ message: 'Quote submitted successfully', booking });
   } catch (error) {
     console.error('Submit quote error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -370,7 +370,7 @@ router.put('/:id/approve-quote', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Approve quote error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
