@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const WorkerProfile = require('../models/WorkerProfile');
 const User = require('../models/User');
+const Booking = require('../models/Booking');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 // Apply middleware to all routes in this file
@@ -68,9 +69,6 @@ router.put('/workers/:id/update-skills', async (req, res) => {
 // @desc    Get real-time platform analytics
 router.get('/stats', async (req, res) => {
   try {
-    const Booking = require('../models/Booking');
-    const User = require('../models/User');
-
     // 1. Count Users
     const totalWorkers = await User.countDocuments({ role: 'worker' });
     const totalCustomers = await User.countDocuments({ role: 'customer' });

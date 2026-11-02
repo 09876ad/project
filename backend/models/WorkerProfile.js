@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const workerProfileSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   skills: [String],
   experience: Number,
   rating: { type: Number, default: 0 },
@@ -14,7 +14,7 @@ const workerProfileSchema = new mongoose.Schema({
     date: { type: Date, default: Date.now }
   }],
   isVerified: { type: Boolean, default: false },
-  insuranceStatus: { type: String, default: 'Active' },
+  insuranceStatus: { type: String, default: 'Pending' },
   cooperativeFundBalance: { type: Number, default: 0 },
 }, { timestamps: true });
 

@@ -61,9 +61,13 @@ const MONGO_URI = process.env.MONGO_URI;
 if (MONGO_URI) {
   mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ MongoDB Connected Successfully!'))
-    .catch(err => console.log('❌ MongoDB Connection Error:', err.message));
+    .catch(err => {
+      console.error('❌ MongoDB Connection Error:', err.message);
+      process.exit(1);
+    });
 } else {
-  console.log('⚠️  MONGO_URI is missing. Database will not connect.');
+  console.error('❌ MONGO_URI is missing. Set it in backend/.env before starting the server.');
+  process.exit(1);
 }
 
 // Basic Route
