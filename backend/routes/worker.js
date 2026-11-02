@@ -81,15 +81,29 @@ router.put('/update-profile', protect, async (req, res) => {
             return res.status(400).json({ message: 'Experience must be between 0 and 50 years' });
         }
 
-        const profile = await WorkerProfile.findOneAndUpdate(
-            { userId: req.user.id },
-            { skills: resolved, experience: years },
-            { new: true }
-        );
-
+        const profile = await WorkerProfile.findOne({ userId: req.user.id });
         if (!profile) {
             return res.status(404).json({ message: 'Profile not found' });
         }
+
+        const approved = profile.skills || [];
+        const changed =
+            approved.length !== resolved.length ||
+            resolved.some((skill) => !approved.includes(skill));
+
+        profile.experience = years;
+        if (changed) {
+            // Approved skills keep running the worker's current jobs; the new
+            // request waits for the cooperative board.
+            profile.pendingSkills = resolved;
+            profile.pendingSkillsRequestedAt = new Date();
+        } else {
+            // Editing back to the approved set withdraws any pending request.
+            profile.pendingSkills = [];
+            profile.pendingSkillsRequestedAt = undefined;
+        }
+
+        await profile.save();
 
         res.json(profile);
     } catch (error) {

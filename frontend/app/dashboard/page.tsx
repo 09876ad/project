@@ -79,6 +79,7 @@ interface AdminWorker {
   _id: string;
   userId?: { name?: string; email?: string };
   skills?: string[];
+  pendingSkills?: string[];
   isVerified?: boolean;
 }
 
@@ -1525,6 +1526,25 @@ function AdminDashboard({ token, user, language }: { token: string; user: Sessio
     }
   };
 
+  const handleReviewSkills = async (workerId: string, approved: boolean) => {
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/workers/${workerId}/review-skills`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ approved })
+      });
+      if (res.ok) {
+        alert(approved ? t('admin.skillsApproved') : t('admin.skillsRejected'));
+        void refreshWorkers();
+      } else {
+        const data = (await res.json().catch(() => null)) as { message?: string } | null;
+        alert(data?.message || t('admin.skillsUpdateFailed'));
+      }
+    } catch {
+      alert(t('admin.skillsUpdateFailed'));
+    }
+  };
+
   const handleEditSkills = async (worker: AdminWorker) => {
     const currentSkills = worker.skills ? worker.skills.join(', ') : "";
     const input = prompt(t('admin.editSkillsPrompt'), currentSkills);
@@ -1589,11 +1609,15 @@ function AdminDashboard({ token, user, language }: { token: string; user: Sessio
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">{worker.userId?.name?.charAt(0) || 'W'}</div>
-                          <div><p className="text-white font-semibold text-lg">{worker.userId?.name}</p><p className="text-white/60 text-sm">{worker.userId?.email}</p><p className="text-white/40 text-xs mt-1">{t('admin.skillsLabel')}: {worker.skills?.join(', ') || t('admin.none')}</p></div>
+                          <div><p className="text-white font-semibold text-lg">{worker.userId?.name}</p><p className="text-white/60 text-sm">{worker.userId?.email}</p><p className="text-white/40 text-xs mt-1">{t('admin.skillsLabel')}: {worker.skills?.join(', ') || t('admin.none')}</p>{worker.pendingSkills && worker.pendingSkills.length > 0 && (<p className="text-amber-300 text-xs mt-1">{t('admin.pendingSkills')}: {worker.pendingSkills.join(', ')}</p>)}</div>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className={`px-4 py-2 rounded-full text-sm font-medium ${worker.isVerified ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}`}>{worker.isVerified ? t('admin.verified') : t('admin.pending')}</span>
                           <div className="flex gap-2">
+                            {worker.pendingSkills && worker.pendingSkills.length > 0 && (<>
+                              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handleReviewSkills(worker._id, true)} className="bg-gradient-to-r from-emerald-600 to-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-emerald-700 hover:to-green-700 shadow-lg">{t('admin.approveSkills')}</motion.button>
+                              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handleReviewSkills(worker._id, false)} className="bg-gradient-to-r from-rose-600 to-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-rose-700 hover:to-red-700 shadow-lg">{t('admin.reject')}</motion.button>
+                            </>)}
                             {!worker.isVerified ? (<motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handleVerify(worker._id, true)} className="bg-gradient-to-r from-emerald-600 to-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-emerald-700 hover:to-green-700 shadow-lg">{t('admin.approve')}</motion.button>) : (<motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handleVerify(worker._id, false)} className="bg-white/10 text-white/70 px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/20 border border-white/20">{t('admin.revoke')}</motion.button>)}
                             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handleEditSkills(worker)} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 shadow-lg">{t('admin.editSkills')}</motion.button>
                           </div>

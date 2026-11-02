@@ -64,7 +64,7 @@ router.put('/workers/:id/update-skills', async (req, res) => {
       return res.status(400).json({ message: `Unknown service category: ${unknown[0]}` });
     }
 
-    const update = { skills: resolved };
+    const update = { skills: resolved, pendingSkills: [] };
     if (experience !== undefined) {
       const years = Number(experience);
       if (!Number.isFinite(years) || years < 0 || years > 50) {
@@ -82,6 +82,39 @@ router.put('/workers/:id/update-skills', async (req, res) => {
     if (!profile) {
       return res.status(404).json({ message: 'Worker profile not found' });
     }
+
+    res.json(profile);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Approve or reject the skill change a worker requested
+router.put('/workers/:id/review-skills', async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid worker id' });
+    }
+
+    const { approved } = req.body;
+    if (typeof approved !== 'boolean') {
+      return res.status(400).json({ message: 'approved must be true or false' });
+    }
+
+    const profile = await WorkerProfile.findById(req.params.id);
+    if (!profile) {
+      return res.status(404).json({ message: 'Worker profile not found' });
+    }
+    if (!Array.isArray(profile.pendingSkills) || profile.pendingSkills.length === 0) {
+      return res.status(400).json({ message: 'No pending skill change' });
+    }
+
+    if (approved) {
+      profile.skills = profile.pendingSkills;
+    }
+    profile.pendingSkills = [];
+    profile.pendingSkillsRequestedAt = undefined;
+    await profile.save();
 
     res.json(profile);
   } catch (error) {

@@ -193,6 +193,11 @@
     "editSkillsPrompt": "नए कौशल अल्पविराम से अलग करके दर्ज करें:",
     "skillsUpdated": "कौशल अपडेट हो गए!",
     "skillsUpdateFailed": "कौशल अपडेट नहीं हो सके।",
+    "pendingSkills": "अनुरोधित सेवाएं",
+    "approveSkills": "सेवाएं स्वीकृत करें",
+    "reject": "अस्वीकार करें",
+    "skillsApproved": "सेवा परिवर्तन स्वीकृत हुआ।",
+    "skillsRejected": "सेवा परिवर्तन अस्वीकार हुआ।",
     "voteFailed": "वोट दर्ज नहीं हो सका।",
     "voteError": "वोट करते समय कुछ गलत हो गया।"
   },

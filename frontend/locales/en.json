@@ -193,6 +193,11 @@
     "editSkillsPrompt": "Enter new skills separated by comma:",
     "skillsUpdated": "Skills updated!",
     "skillsUpdateFailed": "Failed to update skills.",
+    "pendingSkills": "Requested services",
+    "approveSkills": "Approve services",
+    "reject": "Reject",
+    "skillsApproved": "Service change approved.",
+    "skillsRejected": "Service change rejected.",
     "voteFailed": "Failed to register vote.",
     "voteError": "Something went wrong while voting."
   },

@@ -6,6 +6,7 @@ import { useSession } from "@/lib/session";
 
 interface WorkerProfileData {
     skills?: string[];
+    pendingSkills?: string[];
     experience?: number;
 }
 
@@ -15,6 +16,7 @@ export default function ProfilePage() {
     const user = session?.user ?? null;
     const token = session?.token ?? null;
     const [skills, setSkills] = useState<string[]>([]);
+    const [pendingSkills, setPendingSkills] = useState<string[]>([]);
     const [experience, setExperience] = useState(0);
     const [message, setMessage] = useState("");
     const [availableSkills, setAvailableSkills] = useState<string[]>([]);
@@ -60,6 +62,7 @@ export default function ProfilePage() {
                 const data = (await res.json()) as WorkerProfileData;
                 if (!cancelled) {
                     setSkills(data.skills || []);
+                    setPendingSkills(data.pendingSkills || []);
                     setExperience(data.experience || 0);
                 }
             } catch {
@@ -92,8 +95,15 @@ export default function ProfilePage() {
             });
 
             if (res.ok) {
-                setMessage("✅ Profile updated successfully!");
-                setTimeout(() => setMessage(""), 3000);
+                const data = (await res.json()) as WorkerProfileData;
+                setSkills(data.skills || []);
+                setPendingSkills(data.pendingSkills || []);
+                setMessage(
+                    data.pendingSkills && data.pendingSkills.length > 0
+                        ? "Your service change was sent to the board for approval."
+                        : "✅ Profile updated successfully!"
+                );
+                setTimeout(() => setMessage(""), 5000);
             } else {
                 setMessage("❌ Failed to update profile");
             }
@@ -125,6 +135,15 @@ export default function ProfilePage() {
                     </div>
                 )}
 
+                {pendingSkills.length > 0 && (
+                    <div className="mb-4 p-3 rounded-lg bg-amber-50 text-amber-800 text-sm">
+                        Awaiting board approval: {pendingSkills.join(", ")}
+                        <span className="block text-xs text-amber-700 mt-1">
+                            Your approved services stay active until the board reviews this change.
+                        </span>
+                    </div>
+                )}
+
                 <div className="mb-6">
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                         Years of Experience
@@ -141,7 +160,7 @@ export default function ProfilePage() {
 
                 <div className="mb-6">
                     <label className="block text-sm font-medium text-slate-700 mb-3">
-                        Select Your Services
+                        Select Your Services (changes need board approval)
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                         {availableSkills.map((skill) => (
