@@ -15,6 +15,8 @@
     "tabActive": "Active",
     "tabHistory": "History",
     "headingWhatService": "What service do you need today?",
+    "chooseCategory": "Pick a category",
+    "chooseIssue": "Choose what you need",
     "startingAt": "Inspection Fee",
     "verifiedWorkersFor": "Verified Workers for",
     "noWorkers": "No verified workers available right now.",

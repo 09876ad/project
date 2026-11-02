@@ -1,17 +1,37 @@
 const mongoose = require('mongoose');
 const Service = require('./models/Service');
+const { services } = require('./data/services');
 require('dotenv').config();
 
-const seedData = [
-    { name: 'Plumbing', category: 'Household', basePrice: 500 },
-    { name: 'Electrical', category: 'Household', basePrice: 600 },
-    { name: 'Deep Cleaning', category: 'Household', basePrice: 1200 },
-    { name: 'Carpentry', category: 'Household', basePrice: 800 }
-];
+async function seedServices() {
+    await mongoose.connect(process.env.MONGO_URI);
 
-mongoose.connect(process.env.MONGO_URI).then(async () => {
-    await Service.deleteMany({});
-    await Service.insertMany(seedData);
-    console.log('✅ Services seeded successfully!');
-    process.exit();
-});
+    const result = await Service.bulkWrite(
+        services.map((service) => ({
+            updateOne: {
+                filter: { slug: service.slug },
+                update: { $set: service },
+                upsert: true,
+            },
+        }))
+    );
+
+    // The original four category-level rows stay in place so old bookings keep
+    // resolving, but they are retired from the customer-facing catalog.
+    const retired = await Service.updateMany(
+        { slug: { $exists: false } },
+        { $set: { isActive: false } }
+    );
+
+    console.log(
+        `Catalog ready: ${result.upsertedCount} added, ` +
+        `${result.modifiedCount} updated, ${retired.modifiedCount} legacy rows retired.`
+    );
+}
+
+seedServices()
+    .then(() => mongoose.disconnect())
+    .catch((error) => {
+        console.error('Service seed failed:', error);
+        process.exitCode = 1;
+    });

@@ -21,6 +21,10 @@ const ALLOWED_STATUS_TRANSITIONS = {
 // Create a new booking
 router.post('/', protect, async (req, res) => {
   try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ message: 'Only customers can create bookings' });
+    }
+
     const { workerId, serviceId, date, photos } = req.body;
 
     if (!mongoose.isValidObjectId(workerId) || !mongoose.isValidObjectId(serviceId)) {
@@ -44,8 +48,8 @@ router.post('/', protect, async (req, res) => {
 
     const [worker, service, workerProfile] = await Promise.all([
       User.findById(workerId).select('role'),
-      Service.findById(serviceId).select('_id'),
-      WorkerProfile.findOne({ userId: workerId, isVerified: true }).select('_id')
+      Service.findOne({ _id: serviceId, isActive: true }).select('basePrice category'),
+      WorkerProfile.findOne({ userId: workerId, isVerified: true }).select('skills')
     ]);
 
     if (!worker || worker.role !== 'worker') {
@@ -58,18 +62,29 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'Selected worker is not verified' });
     }
 
+    const offersCategory = (workerProfile.skills || []).some(
+      (skill) => String(skill).toLowerCase() === service.category.toLowerCase()
+    );
+    if (!offersCategory) {
+      return res.status(400).json({ message: 'Selected worker does not offer this service' });
+    }
+
     const photoList = Array.isArray(photos)
       ? photos.filter((photo) => typeof photo === 'string').slice(0, 10)
       : [];
 
-    // ✅ Diagnostic Fee (Base Price for Inspection)
-    const diagnosticFee = 100;
+    // Price comes from the catalog, never from the client, so a tampered
+    // request cannot lower the amount that gets split.
+    const diagnosticFee = service.basePrice;
+    if (!Number.isFinite(diagnosticFee) || diagnosticFee <= 0 || diagnosticFee > 100000) {
+      return res.status(400).json({ message: 'Service price is unavailable' });
+    }
 
-    // Cooperative Pricing Logic (The USP!)
-    // Example: 80% to worker, 10% to coop fund, 10% platform fee
-    const workerPayout = diagnosticFee * 0.80;
-    const cooperativeFundContribution = diagnosticFee * 0.10;
-    const platformFee = diagnosticFee * 0.10;
+    // Cooperative split: 80% to worker, 10% to coop fund, 10% platform fee
+    const money = (amount) => Math.round(amount * 100) / 100;
+    const workerPayout = money(diagnosticFee * 0.80);
+    const cooperativeFundContribution = money(diagnosticFee * 0.10);
+    const platformFee = money(diagnosticFee * 0.10);
 
     const booking = await Booking.create({
       customerId: req.user.id,

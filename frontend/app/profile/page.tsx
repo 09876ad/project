@@ -17,6 +17,26 @@ export default function ProfilePage() {
     const [skills, setSkills] = useState<string[]>([]);
     const [experience, setExperience] = useState(0);
     const [message, setMessage] = useState("");
+    const [availableSkills, setAvailableSkills] = useState<string[]>([]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadCategories = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/services/categories`);
+                if (res.ok && !cancelled) {
+                    const data = (await res.json()) as { category: string }[];
+                    setAvailableSkills(data.map((item) => item.category));
+                }
+            } catch {
+                console.error("Failed to load service categories");
+            }
+        };
+
+        void loadCategories();
+        return () => { cancelled = true; };
+    }, []);
 
     useEffect(() => {
         if (session && !token) {
@@ -93,11 +113,6 @@ export default function ProfilePage() {
     if (user.role !== 'worker') {
         return <div className="p-8 text-center">Only workers can edit their profile</div>;
     }
-
-    const availableSkills = [
-        "Plumbing", "Electrical", "Deep Cleaning", "Carpentry",
-        "Painting", "AC Repair", "Appliance Repair"
-    ];
 
     return (
         <div className="min-h-screen bg-slate-50 p-8">

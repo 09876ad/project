@@ -30,7 +30,12 @@ type BookingStatus = "pending" | "accepted" | "pending_approval" | "in_progress"
 interface Service {
   _id: string;
   name: string;
-  basePrice?: number;
+  nameHi: string;
+  category: string;
+  categoryHi: string;
+  description?: string;
+  descriptionHi?: string;
+  basePrice: number;
 }
 
 interface WorkerSummary {
@@ -84,8 +89,6 @@ interface PlatformStats {
   totalWelfare: number;
 }
 
-// Must match the flat diagnostic fee charged by POST /api/bookings
-const INSPECTION_FEE = 100;
 // The fund value at which the cooperative considers full coverage reached.
 const FULL_COVERAGE_TARGET = 5000;
 // Fallback shown when the browser has no location permission (demo city).
@@ -180,6 +183,7 @@ function CustomerDashboard({ token, language }: { token: string; language: Langu
   const { t } = useTranslation(language);
   const [services, setServices] = useState<Service[]>([]);
   const [workers, setWorkers] = useState<WorkerSummary[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedWorker, setSelectedWorker] = useState<WorkerSummary | null>(null);
   const [bookingDate, setBookingDate] = useState("");
@@ -284,7 +288,7 @@ function CustomerDashboard({ token, language }: { token: string; language: Langu
     setSelectedService(service);
     setActiveTab('browse');
     try {
-      const res = await fetch(`${API_URL}/api/workers?skill=${encodeURIComponent(service.name)}`);
+      const res = await fetch(`${API_URL}/api/workers?category=${encodeURIComponent(service.category)}`);
       if (res.ok) setWorkers((await res.json()) as WorkerSummary[]);
     } catch {
       console.error("Failed to fetch workers");
@@ -468,6 +472,20 @@ function CustomerDashboard({ token, language }: { token: string; language: Langu
     }
   };
 
+  const categories = Array.from(
+    new Map(services.map((service) => [service.category, { category: service.category, categoryHi: service.categoryHi }])).values()
+  );
+  const categoryLabel = (category: string, categoryHi: string) =>
+    language === 'hi' && categoryHi ? categoryHi : category;
+  const serviceLabel = (service: Service) =>
+    language === 'hi' && service.nameHi ? service.nameHi : service.name;
+  const serviceDescription = (service: Service) =>
+    language === 'hi' && service.descriptionHi ? service.descriptionHi : service.description ?? '';
+  const bookingPrice = selectedService?.basePrice ?? 0;
+  const workerShare = Math.round(bookingPrice * 80) / 100;
+  const welfareShare = Math.round(bookingPrice * 10) / 100;
+  const platformShare = Math.round(bookingPrice * 10) / 100;
+
   return (
     <div className="relative min-h-screen">
       <AdminBackground />
@@ -488,17 +506,40 @@ function CustomerDashboard({ token, language }: { token: string; language: Langu
         {activeTab === 'browse' && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-6">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2"><Wrench className="text-indigo-400" /> {t('customer.headingWhatService')}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {services.map((service, index) => (
-                <motion.div key={service._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05, y: -5 }} onClick={() => handleServiceClick(service)} className={`bg-white/10 backdrop-blur-lg p-6 rounded-2xl border cursor-pointer transition hover:bg-white/20 ${selectedService?._id === service._id ? 'border-indigo-500 ring-2 ring-indigo-500' : 'border-white/20'}`}>
-                  <h3 className="text-lg font-semibold text-white">{service.name}</h3>
-                  <p className="text-white/70 text-sm mt-1">{t('customer.startingAt')} ₹{INSPECTION_FEE}</p>
-                </motion.div>
+            <p className="text-white/60 text-sm">{t('customer.chooseCategory')}</p>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category.category}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(category.category);
+                    setSelectedService(null);
+                    setWorkers([]);
+                  }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition ${selectedCategory === category.category ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-white/5 border-white/15 text-white/70 hover:bg-white/10'}`}
+                >
+                  {categoryLabel(category.category, category.categoryHi)}
+                </button>
               ))}
             </div>
+            {selectedCategory && (
+              <>
+                <p className="text-white/60 text-sm">{t('customer.chooseIssue')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {services.filter((service) => service.category === selectedCategory).map((service, index) => (
+                    <motion.div key={service._id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} whileHover={{ scale: 1.05, y: -5 }} onClick={() => handleServiceClick(service)} className={`bg-white/10 backdrop-blur-lg p-6 rounded-2xl border cursor-pointer transition hover:bg-white/20 ${selectedService?._id === service._id ? 'border-indigo-500 ring-2 ring-indigo-500' : 'border-white/20'}`}>
+                      <h3 className="text-lg font-semibold text-white">{serviceLabel(service)}</h3>
+                      <p className="text-white/60 text-xs mt-1">{serviceDescription(service)}</p>
+                      <p className="text-white/70 text-sm mt-2">{t('customer.startingAt')} ₹{service.basePrice}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
             {selectedService && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-                <h3 className="text-xl font-bold text-white mb-4">{t('customer.verifiedWorkersFor')} {selectedService.name}</h3>
+                <h3 className="text-xl font-bold text-white mb-4">{t('customer.verifiedWorkersFor')} {serviceLabel(selectedService)}</h3>
                 {workers.length > 0 && (
                   <WorkerMap
                     workers={workers}
@@ -660,7 +701,7 @@ function CustomerDashboard({ token, language }: { token: string; language: Langu
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-slate-900/90 rounded-2xl shadow-2xl border border-white/20 p-6 max-w-md w-full">
               <h3 className="text-xl font-bold mb-4 text-white">{t('customer.confirmBooking')}</h3>
               <p className="mb-2 text-white/80"><strong className="text-white">{t('customer.workerLabel')}:</strong> {selectedWorker.userId?.name}</p>
-              <p className="mb-4 text-white/80"><strong className="text-white">{t('customer.serviceLabel')}:</strong> {selectedService.name}</p>
+              <p className="mb-4 text-white/80"><strong className="text-white">{t('customer.serviceLabel')}:</strong> {serviceLabel(selectedService)}</p>
               <label className="block mb-2 text-sm font-medium text-white/80">{t('customer.selectDateTime')}</label>
               <p className="text-indigo-300 text-xs mb-2">
                 📅 {t('customer.bookingWindowHint')}
@@ -676,13 +717,13 @@ function CustomerDashboard({ token, language }: { token: string; language: Langu
               />
               <div className="bg-white/5 p-5 rounded-2xl border border-white/10 mb-6">
                 <h4 className="font-bold text-white mb-4 text-center">{t('customer.pricingBreakdown')}</h4>
-                <div className="mb-3"><div className="flex justify-between mb-1 text-sm"><span className="text-white/80">{t('customer.workerReceives')}</span><span className="text-white font-bold">80%</span></div><div className="w-full bg-white/10 rounded-full h-2"><div className="bg-indigo-500 h-2 rounded-full" style={{ width: '80%' }}></div></div></div>
-                <div className="mb-3"><div className="flex justify-between mb-1 text-sm"><span className="text-white/80">{t('customer.welfareFund')}</span><span className="text-white font-bold">10%</span></div><div className="w-full bg-white/10 rounded-full h-2"><div className="bg-purple-500 h-2 rounded-full" style={{ width: '10%' }}></div></div></div>
-                <div><div className="flex justify-between mb-1 text-sm"><span className="text-white/80">{t('customer.platformFee')}</span><span className="text-white font-bold">10%</span></div><div className="w-full bg-white/10 rounded-full h-2"><div className="bg-slate-500 h-2 rounded-full" style={{ width: '10%' }}></div></div></div>
+                <div className="mb-3"><div className="flex justify-between mb-1 text-sm"><span className="text-white/80">{t('customer.workerReceives')}</span><span className="text-white font-bold">80% · ₹{workerShare}</span></div><div className="w-full bg-white/10 rounded-full h-2"><div className="bg-indigo-500 h-2 rounded-full" style={{ width: '80%' }}></div></div></div>
+                <div className="mb-3"><div className="flex justify-between mb-1 text-sm"><span className="text-white/80">{t('customer.welfareFund')}</span><span className="text-white font-bold">10% · ₹{welfareShare}</span></div><div className="w-full bg-white/10 rounded-full h-2"><div className="bg-purple-500 h-2 rounded-full" style={{ width: '10%' }}></div></div></div>
+                <div><div className="flex justify-between mb-1 text-sm"><span className="text-white/80">{t('customer.platformFee')}</span><span className="text-white font-bold">10% · ₹{platformShare}</span></div><div className="w-full bg-white/10 rounded-full h-2"><div className="bg-slate-500 h-2 rounded-full" style={{ width: '10%' }}></div></div></div>
               </div>
               <div className="flex justify-end gap-2">
                 <button onClick={closeBookingModal} className="px-4 py-2 text-white/70 hover:bg-white/10 rounded-xl transition">{t('customer.cancel')}</button>
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={confirmBooking} className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg">{t('customer.confirmPay')}</motion.button>
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={confirmBooking} className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg">{t('customer.confirmPay')} ₹{bookingPrice}</motion.button>
               </div>
 
               {/* ✅ Integrated Photo Upload Section */}
@@ -1322,8 +1363,8 @@ function WorkerDashboard({ token, user, language }: { token: string; user: Sessi
             <div className="mb-6">
               <label className="block text-sm font-medium text-white/80 mb-2">{t('worker.partsCostLabel')}</label>
               <input type="number" min="0" value={partsCost} onChange={(e) => setPartsCost(Number(e.target.value))} placeholder="0" className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <p className="text-xs text-white/50 mt-1">{t('worker.diagnosticFeeIncluded', { fee: INSPECTION_FEE })}</p>
-              <p className="text-sm font-bold text-indigo-400 mt-2">{t('worker.totalQuote', { total: INSPECTION_FEE + Number(partsCost || 0) })}</p>
+              <p className="text-xs text-white/50 mt-1">{t('worker.diagnosticFeeIncluded', { fee: selectedBookingForQuote.diagnosticFee ?? 100 })}</p>
+              <p className="text-sm font-bold text-indigo-400 mt-2">{t('worker.totalQuote', { total: (selectedBookingForQuote.diagnosticFee ?? 100) + Number(partsCost || 0) })}</p>
             </div>
 
             <div className="flex justify-end gap-2">

@@ -6,6 +6,7 @@ const User = require('../models/User');
 const WorkerProfile = require('../models/WorkerProfile');
 const { protect } = require('../middleware/authMiddleware');
 const { rateLimit } = require('../middleware/rateLimit');
+const { resolveSkills } = require('../lib/catalog');
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -50,6 +51,16 @@ router.post('/register', registerLimiter, async (req, res) => {
 
         const normalizedEmail = email.trim();
 
+        let workerSkills = [];
+        if (finalRole === 'worker') {
+            const provided = Array.isArray(req.body.skills) ? req.body.skills.slice(0, 20) : [];
+            const { resolved, unknown } = await resolveSkills(provided);
+            if (unknown.length > 0) {
+                return res.status(400).json({ message: `Unknown service category: ${unknown[0]}` });
+            }
+            workerSkills = resolved;
+        }
+
         // 1. Check if user already exists
         const userExists = await User.findOne({ email: normalizedEmail });
         if (userExists) {
@@ -72,15 +83,9 @@ router.post('/register', registerLimiter, async (req, res) => {
 
         // 4. If user is a worker, create an empty WorkerProfile for them
         if (user.role === 'worker') {
-            const skills = Array.isArray(req.body.skills)
-                ? req.body.skills
-                    .filter((skill) => typeof skill === 'string' && skill.trim())
-                    .map((skill) => skill.trim().slice(0, 50))
-                    .slice(0, 20)
-                : [];
             await WorkerProfile.create({
                 userId: user._id,
-                skills,
+                skills: workerSkills,
                 experience: 0,
                 isVerified: false,
                 insuranceStatus: 'Pending',

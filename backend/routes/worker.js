@@ -3,28 +3,31 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const WorkerProfile = require('../models/WorkerProfile');
 const { protect } = require('../middleware/authMiddleware');
+const { resolveSkills } = require('../lib/catalog');
 
 // Everything customers need to book, and nothing private (reviews contain
 // customer PII; the cooperative fund balance is internal).
 const PUBLIC_PROFILE_FIELDS = 'skills experience rating reviewCount isVerified insuranceStatus';
 
-// GET /api/workers - Get workers by skill (for customer dashboard)
+// GET /api/workers - Verified workers, optionally filtered by service category
 router.get('/', async (req, res) => {
     try {
-        const { skill } = req.query;
-        console.log('Searching for skill:', skill); // Debug log
+        const category = req.query.category ?? req.query.skill;
 
-        let query = { isVerified: true }; // Only show verified workers
-
-        if (skill) {
-            query.skills = skill;
+        const query = { isVerified: true };
+        if (category !== undefined) {
+            if (typeof category !== 'string' || !category.trim() || category.length > 50) {
+                return res.status(400).json({ message: 'Invalid category' });
+            }
+            query.skills = category.trim();
         }
 
         const workerProfiles = await WorkerProfile.find(query)
             .select(PUBLIC_PROFILE_FIELDS)
-            .populate('userId', 'name');
+            .populate('userId', 'name')
+            .sort({ rating: -1 })
+            .limit(50);
 
-        console.log('Found workers:', workerProfiles.length); // Debug log
         res.json(workerProfiles);
     } catch (error) {
         console.error('Error fetching workers:', error);
@@ -68,6 +71,11 @@ router.put('/update-profile', protect, async (req, res) => {
             return res.status(400).json({ message: 'Skills must be a list of service names' });
         }
 
+        const { resolved, unknown } = await resolveSkills(skills);
+        if (unknown.length > 0) {
+            return res.status(400).json({ message: `Unknown service category: ${unknown[0]}` });
+        }
+
         const years = Number(experience);
         if (!Number.isFinite(years) || years < 0 || years > 50) {
             return res.status(400).json({ message: 'Experience must be between 0 and 50 years' });
@@ -75,7 +83,7 @@ router.put('/update-profile', protect, async (req, res) => {
 
         const profile = await WorkerProfile.findOneAndUpdate(
             { userId: req.user.id },
-            { skills: skills.map((skill) => skill.trim()).filter(Boolean), experience: years },
+            { skills: resolved, experience: years },
             { new: true }
         );
 

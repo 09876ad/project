@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -29,6 +29,26 @@ export default function Register() {
     });
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [skillOptions, setSkillOptions] = useState<string[]>([]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadCategories = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/services/categories`);
+                if (res.ok && !cancelled) {
+                    const data = (await res.json()) as { category: string }[];
+                    setSkillOptions(data.map((item) => item.category));
+                }
+            } catch {
+                console.error("Failed to load service categories");
+            }
+        };
+
+        void loadCategories();
+        return () => { cancelled = true; };
+    }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -191,10 +211,9 @@ export default function Register() {
                                         backgroundColor: 'rgba(255, 255, 255, 0.2)'
                                     }}
                                 >
-                                    <option value="Plumbing" style={{ color: 'white', backgroundColor: '#4c1d95' }}>🔧 Plumbing</option>
-                                    <option value="Electrical" style={{ color: 'white', backgroundColor: '#4c1d95' }}> 💡Electrical</option>
-                                    <option value="Deep Cleaning" style={{ color: 'white', backgroundColor: '#4c1d95' }}>🧹 Deep Cleaning</option>
-                                    <option value="Carpentry" style={{ color: 'white', backgroundColor: '#4c1d95' }}>🪚 Carpentry</option>
+                                    {skillOptions.map((category) => (
+                                        <option key={category} value={category} style={{ color: 'white', backgroundColor: '#4c1d95' }}>{category}</option>
+                                    ))}
 
                                 </select>
                                 <p className="text-white/60 text-xs">Selected: {formData.skills.join(', ') || 'None'}</p>

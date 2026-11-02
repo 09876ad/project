@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const WorkerProfile = require('../models/WorkerProfile');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { resolveSkills } = require('../lib/catalog');
 
 // Apply middleware to all routes in this file
 router.use(protect);
@@ -48,10 +50,32 @@ router.put('/workers/:id/verify', async (req, res) => {
 // Update worker skills (Admin only)
 router.put('/workers/:id/update-skills', async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid worker id' });
+    }
+
     const { skills, experience } = req.body;
+    if (!Array.isArray(skills) || !skills.every((skill) => typeof skill === 'string')) {
+      return res.status(400).json({ message: 'Skills must be a list of service categories' });
+    }
+
+    const { resolved, unknown } = await resolveSkills(skills);
+    if (unknown.length > 0) {
+      return res.status(400).json({ message: `Unknown service category: ${unknown[0]}` });
+    }
+
+    const update = { skills: resolved };
+    if (experience !== undefined) {
+      const years = Number(experience);
+      if (!Number.isFinite(years) || years < 0 || years > 50) {
+        return res.status(400).json({ message: 'Experience must be between 0 and 50 years' });
+      }
+      update.experience = years;
+    }
+
     const profile = await WorkerProfile.findByIdAndUpdate(
       req.params.id,
-      { skills, experience },
+      update,
       { new: true }
     ).populate('userId', 'name email');
 
